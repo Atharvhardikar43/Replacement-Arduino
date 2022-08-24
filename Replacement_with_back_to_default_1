@@ -1,0 +1,137 @@
+//#include <Servo.h>
+int pos = 0;
+//Servo servo;
+bool A = true;
+bool B = true;
+int freeinputpin=8;
+
+float pressure_sensor = A0;
+int pos_linact1 =12 , neg_linact1 = 10,pos_linact2 =6 , neg_linact2 =7  ;
+float pos1=20,pos2=100;
+float height_of_module=101,len1;//height= -0.0002*pos**2 - 0.1051*pos + 478.38
+const byte interruptPin = 2;
+const byte FreePin = freeinputpin;
+volatile byte state = LOW;
+
+
+//replacement code
+void replacement()
+  {
+    
+    //lowering of plate then removal of old module after feedback from pressure sensor
+    while(A && pos2<=1020)
+    {
+    //servo.write(120);
+    float height,height_final;
+    float sensorValue = analogRead(pressure_sensor);
+    pos1 = analogRead(A1);
+    pos2 = analogRead(A2);  
+    height= -0.0002*pos1*pos1 - 0.1051*pos1 + 478.38;  
+    Serial.println(height);
+      if (sensorValue > 150)
+          { 
+           //stop linact1
+           digitalWrite(pos_linact1, HIGH);
+           digitalWrite(neg_linact1, HIGH);
+    
+    
+          //complete retraction of linact2
+              while(pos2<=1015)
+              {
+                digitalWrite(pos_linact2, LOW);
+                digitalWrite(neg_linact2, HIGH);    
+                pos2 = analogRead(A2);
+              }
+    
+    height_final = height + height_of_module;
+
+    A = false;
+
+          }
+          
+        else
+          {
+            digitalWrite(pos_linact1, LOW);
+            digitalWrite(neg_linact1, HIGH);
+      
+          }
+    }
+  
+    
+  
+    //lowering of plate and then inserting the new module
+    while(B && pos2>=600)
+      {
+        float height,height_final;
+        pos1 = analogRead(A1);
+        pos2 = analogRead(A2);  
+        height= -0.0002*pos1*pos1 - 0.1051*pos1 + 478.38;
+        height_final = height + height_of_module;
+  
+  
+         while (height<=height_final)
+            {//start linact1 till the new module reaches desired height
+            pos1=analogRead(A1);
+            digitalWrite(pos_linact1, LOW);
+            digitalWrite(neg_linact1, HIGH);
+            digitalWrite(pos_linact2, HIGH);
+            digitalWrite(neg_linact2, HIGH);
+            
+         height=-0.0002*pos1*pos1 - 0.1051*pos1 + 478.38;
+         }
+         
+         //open lock
+         //servo.write(20);
+         
+        while (pos2>=590)
+            {//extention of linact2, to fix new module
+            pos2 = analogRead(A2);
+            digitalWrite(pos_linact1, HIGH);
+            digitalWrite(neg_linact1, HIGH);
+            digitalWrite(pos_linact2, HIGH);
+            digitalWrite(neg_linact2, LOW);    
+            }
+            
+
+      }
+      B = false;
+      delay(2000);
+      while(pos2<20)
+        {//retraction of linact2, after replacement is done
+            pos2 = analogRead(A2);
+            digitalWrite(pos_linact1, HIGH);
+            digitalWrite(neg_linact1, HIGH);
+            digitalWrite(pos_linact2, LOW);
+            digitalWrite(neg_linact2, HIGH);
+
+        }
+      while(pos1<610)
+        {//extension of linact1
+           pos1 = analogRead(A1);
+            digitalWrite(pos_linact1, HIGH);
+            digitalWrite(neg_linact1, LOW);
+            digitalWrite(pos_linact2, HIGH);
+            digitalWrite(neg_linact2, HIGH);
+ 
+        }
+  }
+void setup() {
+  //pins of linear actuator 1 and linear actuator 2
+  Serial.begin(9600);
+  pinMode(pos_linact1, OUTPUT);
+  pinMode(neg_linact1, OUTPUT);
+  pinMode(pos_linact2, OUTPUT);
+  pinMode(neg_linact2, OUTPUT);
+  //servo.attach(5, 500, 2500);
+
+  //pin for interrupt key
+  pinMode (interruptPin , INPUT_PULLUP);
+  attachInterrupt (digitalPinToInterrupt (interruptPin ), replacement, CHANGE ) ;
+}
+
+
+//main loop which takes input from user and then forwards the user to the replacement code only when asked for it
+void loop() 
+  {
+    digitalWrite (FreePin, state ) ;
+  }
